@@ -1,6 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { collection, getDocs, addDoc, updateDoc, doc, setDoc } from 'firebase/firestore';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { db, firebaseConfig } from './firebase';
+
+// Generates a readable but random password, e.g. "Sun4821XK"
+function generatePassword() {
+  const digits = Math.floor(1000 + Math.random() * 9000);
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const l1 = letters[Math.floor(Math.random() * letters.length)];
+  const l2 = letters[Math.floor(Math.random() * letters.length)];
+  return `Sun${digits}${l1}${l2}`;
+}
+
+// Creates a Firebase Auth user WITHOUT signing out the currently
+// logged-in admin, by using a temporary secondary app instance.
+async function createUserWithoutSignOut(email, password) {
+  const tempAppName = `secondary-${Date.now()}`;
+  const secondaryApp = initializeApp(firebaseConfig, tempAppName);
+  const secondaryAuth = getAuth(secondaryApp);
+  try {
+    const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    const uid = userCredential.user.uid;
+    await signOut(secondaryAuth);
+    await deleteApp(secondaryApp);
+    return uid;
+  } catch (err) {
+    await deleteApp(secondaryApp);
+    throw err;
+  }
+}
 
 export default function AdminCurriculum() {
   const [activeTab, setActiveTab] = useState('links');
@@ -9,10 +38,16 @@ export default function AdminCurriculum() {
   const [externalLinks, setExternalLinks] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Form states for adding external integration gateway links
   const [systemName, setSystemName] = useState('');
   const [category, setCategory] = useState('Library Resource');
   const [targetUrl, setTargetUrl] = useState('');
+
+  const [newFullName, setNewFullName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newRole, setNewRole] = useState('student');
+  const [newDepartment, setNewDepartment] = useState('');
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [lastCreated, setLastCreated] = useState(null);
 
   useEffect(() => {
     fetchAdminData();
@@ -56,12 +91,56 @@ export default function AdminCurriculum() {
   };
 
   const toggleUserRole = async (userId, currentRole) => {
-    const newRole = currentRole === 'student' ? 'lecturer' : 'student';
+    const newRoleValue = currentRole === 'student' ? 'lecturer' : 'student';
     try {
-      await updateDoc(doc(db, 'users', userId), { role: newRole });
+      await updateDoc(doc(db, 'users', userId), { role: newRoleValue });
       fetchAdminData();
     } catch (err) {
       alert("Error updating role: " + err.message);
+    }
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    if (!newFullName || !newEmail) {
+      alert("Please fill in the name and email.");
+      return;
+    }
+
+    setCreatingUser(true);
+    setLastCreated(null);
+    const generatedPassword = generatePassword();
+
+    try {
+      const uid = await createUserWithoutSignOut(newEmail, generatedPassword);
+
+      await setDoc(doc(db, 'users', uid), {
+        fullName: newFullName,
+        email: newEmail,
+        role: newRole,
+        department: newDepartment || 'General'
+      });
+
+      setLastCreated({
+        fullName: newFullName,
+        email: newEmail,
+        password: generatedPassword,
+        role: newRole
+      });
+
+      setNewFullName('');
+      setNewEmail('');
+      setNewDepartment('');
+      setNewRole('student');
+      fetchAdminData();
+    } catch (err) {
+      if (err.code === 'auth/email-already-in-use') {
+        alert("An account with this email already exists.");
+      } else {
+        alert("Error creating account: " + err.message);
+      }
+    } finally {
+      setCreatingUser(false);
     }
   };
 
@@ -98,7 +177,6 @@ export default function AdminCurriculum() {
         <div className="text-center py-12 text-yellow-500 font-medium">Loading administrative records...</div>
       ) : (
         <>
-          {/* External Integration Gateway Section */}
           {activeTab === 'links' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl h-fit">
@@ -171,49 +249,120 @@ export default function AdminCurriculum() {
             </div>
           )}
 
-          {/* User Management Section */}
           {activeTab === 'users' && (
-            <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl overflow-x-auto">
-              <h3 className="text-lg font-bold text-white mb-4">Registered Platform Users</h3>
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-800 text-gray-400 text-sm">
-                    <th className="pb-3 px-4">Full Name</th>
-                    <th className="pb-3 px-4">Email / ID</th>
-                    <th className="pb-3 px-4">Department</th>
-                    <th className="pb-3 px-4">Role</th>
-                    <th className="pb-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800 text-sm">
-                  {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-950/50">
-                      <td className="py-3 px-4 font-medium text-white">{u.fullName}</td>
-                      <td className="py-3 px-4 text-gray-400">{u.email}</td>
-                      <td className="py-3 px-4 text-gray-400">{u.department || 'General'}</td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 font-semibold uppercase">
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {u.role !== 'admin' && (
-                          <button
-                            onClick={() => toggleUserRole(u.id, u.role)}
-                            className="text-xs text-yellow-500 hover:underline font-medium"
-                          >
-                            Toggle Role
-                          </button>
-                        )}
-                      </td>
+            <div className="space-y-6">
+              <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+                <h3 className="text-lg font-bold text-white mb-1">Create New Account</h3>
+                <p className="text-gray-400 text-sm mb-4">A secure password is generated automatically — you'll see it once after creation to share with the user.</p>
+
+                <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={newFullName}
+                      onChange={(e) => setNewFullName(e.target.value)}
+                      placeholder="e.g., Chanda Mwansa"
+                      className="w-full rounded-lg bg-gray-950 border border-gray-800 px-4 py-2.5 text-white focus:border-yellow-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
+                    <input
+                      type="email"
+                      required
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="name@sunningdale.edu"
+                      className="w-full rounded-lg bg-gray-950 border border-gray-800 px-4 py-2.5 text-white focus:border-yellow-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Role</label>
+                    <select
+                      value={newRole}
+                      onChange={(e) => setNewRole(e.target.value)}
+                      className="w-full rounded-lg bg-gray-950 border border-gray-800 px-4 py-2.5 text-white focus:border-yellow-500 focus:outline-none"
+                    >
+                      <option value="student">Student</option>
+                      <option value="lecturer">Lecturer</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Department</label>
+                    <input
+                      type="text"
+                      value={newDepartment}
+                      onChange={(e) => setNewDepartment(e.target.value)}
+                      placeholder="e.g., Business Administration"
+                      className="w-full rounded-lg bg-gray-950 border border-gray-800 px-4 py-2.5 text-white focus:border-yellow-500 focus:outline-none"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <button
+                      type="submit"
+                      disabled={creatingUser}
+                      className="w-full bg-yellow-500 hover:bg-yellow-400 font-semibold text-gray-950 py-2.5 rounded-lg transition-all disabled:opacity-60"
+                    >
+                      {creatingUser ? 'Creating Account...' : 'Generate Account & Password'}
+                    </button>
+                  </div>
+                </form>
+
+                {lastCreated && (
+                  <div className="mt-5 p-4 rounded-xl bg-green-500/10 border border-green-500/20 space-y-1">
+                    <p className="text-sm font-semibold text-green-400">Account created successfully — share these credentials now, they won't be shown again:</p>
+                    <p className="text-sm text-gray-200"><span className="text-gray-400">Name:</span> {lastCreated.fullName}</p>
+                    <p className="text-sm text-gray-200"><span className="text-gray-400">Role:</span> {lastCreated.role}</p>
+                    <p className="text-sm text-gray-200"><span className="text-gray-400">Email:</span> {lastCreated.email}</p>
+                    <p className="text-sm text-gray-200"><span className="text-gray-400">Password:</span> <span className="font-mono font-bold text-yellow-400">{lastCreated.password}</span></p>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl overflow-x-auto">
+                <h3 className="text-lg font-bold text-white mb-4">Registered Platform Users</h3>
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-800 text-gray-400 text-sm">
+                      <th className="pb-3 px-4">Full Name</th>
+                      <th className="pb-3 px-4">Email / ID</th>
+                      <th className="pb-3 px-4">Department</th>
+                      <th className="pb-3 px-4">Role</th>
+                      <th className="pb-3 px-4 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800 text-sm">
+                    {users.map((u) => (
+                      <tr key={u.id} className="hover:bg-gray-950/50">
+                        <td className="py-3 px-4 font-medium text-white">{u.fullName}</td>
+                        <td className="py-3 px-4 text-gray-400">{u.email}</td>
+                        <td className="py-3 px-4 text-gray-400">{u.department || 'General'}</td>
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 font-semibold uppercase">
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {u.role !== 'admin' && (
+                            <button
+                              onClick={() => toggleUserRole(u.id, u.role)}
+                              className="text-xs text-yellow-500 hover:underline font-medium"
+                            >
+                              Toggle Role
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
-          {/* Courses Section */}
           {activeTab === 'courses' && (
             <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
               <h3 className="text-lg font-bold text-white mb-4">Academic Modules & Courses</h3>
@@ -236,4 +385,4 @@ export default function AdminCurriculum() {
       )}
     </div>
   );
-          }
+        }
