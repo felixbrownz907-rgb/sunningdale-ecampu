@@ -170,10 +170,7 @@ export default function AdminCurriculum() {
       }
     } finally {
       setCreatingUser(false);
-    }
-  };
-
-  const handleCreateTerm = async (e) => {
+    }const handleCreateTerm = async (e) => {
     e.preventDefault();
     if (!newTermName) {
       alert("Please give the term a name.");
@@ -364,6 +361,7 @@ export default function AdminCurriculum() {
                 </div>
               </div>
             </div>
+  };
           )}
 
           {activeTab === 'users' && (
@@ -445,4 +443,244 @@ export default function AdminCurriculum() {
 
               <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl overflow-x-auto">
                 <h3 className="text-lg font-bold text-white mb-4">Registered Platform Users</h3>
-                <table className="w-full text-left border-collapse
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-800 text-gray-400 text-sm">
+                      <th className="pb-3 px-4">Full Name</th>
+                      <th className="pb-3 px-4">Email / ID</th>
+                      <th className="pb-3 px-4">Level</th>
+                      <th className="pb-3 px-4">Role</th>
+                      <th className="pb-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800 text-sm">
+                    {users.map((u) => (
+                      <tr key={u.id} className="hover:bg-gray-950/50">
+                        <td className="py-3 px-4 font-medium text-white">{u.fullName}</td>
+                        <td className="py-3 px-4 text-gray-400">{u.email}</td>
+                        <td className="py-3 px-4 text-gray-400">{u.role === 'student' ? `Y${u.yearLevel || 1} S${u.semester || 1}` : '—'}</td>
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 font-semibold uppercase">{u.role}</span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {u.role !== 'admin' && (
+                            <button onClick={() => toggleUserRole(u.id, u.role)} className="text-xs text-yellow-500 hover:underline font-medium">Toggle Role</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'terms' && (
+            <div className="space-y-6">
+              <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+                <h3 className="text-lg font-bold text-white mb-4">Create a Term</h3>
+                <form onSubmit={handleCreateTerm} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Term Name</label>
+                    <input type="text" required value={newTermName} onChange={(e) => setNewTermName(e.target.value)}
+                      placeholder="e.g., 2026 Year 2 Semester 1"
+                      className="w-full rounded-lg bg-gray-950 border border-gray-800 px-4 py-2.5 text-white focus:border-yellow-500 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Year Level</label>
+                    <select value={newTermYearLevel} onChange={(e) => setNewTermYearLevel(e.target.value)}
+                      className="w-full rounded-lg bg-gray-950 border border-gray-800 px-4 py-2.5 text-white focus:border-yellow-500 focus:outline-none">
+                      <option value={1}>Year 1</option>
+                      <option value={2}>Year 2</option>
+                      <option value={3}>Year 3</option>
+                      <option value={4}>Year 4</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Semester</label>
+                    <select value={newTermSemester} onChange={(e) => setNewTermSemester(e.target.value)}
+                      className="w-full rounded-lg bg-gray-950 border border-gray-800 px-4 py-2.5 text-white focus:border-yellow-500 focus:outline-none">
+                      <option value={1}>Semester 1</option>
+                      <option value={2}>Semester 2</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-4">
+                    <button type="submit" className="w-full bg-yellow-500 hover:bg-yellow-400 font-semibold text-gray-950 py-2.5 rounded-lg transition-all">Create Term</button>
+                  </div>
+                </form>
+              </div>
+
+              <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+                <h3 className="text-lg font-bold text-white mb-4">All Terms</h3>
+                <div className="space-y-3">
+                  {terms.length === 0 ? (
+                    <p className="text-gray-400 text-sm">No terms created yet.</p>
+                  ) : (
+                    terms.map(t => (
+                      <div key={t.id} className="flex justify-between items-center p-4 bg-gray-950 rounded-xl border border-gray-800">
+                        <div>
+                          <h4 className="font-semibold text-white">{t.name}</h4>
+                          <p className="text-xs text-gray-400">Year {t.yearLevel} • Semester {t.semester}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`px-2.5 py-1 text-xs rounded-full font-medium border ${t.status === 'open' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>
+                            {t.status}
+                          </span>
+                          {t.status === 'open' ? (
+                            <button onClick={() => closeTerm(t.id)} className="text-xs text-yellow-500 hover:underline font-medium">Close Term</button>
+                          ) : (
+                            <button onClick={() => reopenTerm(t.id)} className="text-xs text-yellow-500 hover:underline font-medium">Reopen</button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                </div>
+
+              <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+                <h3 className="text-lg font-bold text-white mb-4">Add a Course to a Term</h3>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Select Term</label>
+                  <select value={selectedTermId} onChange={(e) => setSelectedTermId(e.target.value)}
+                    className="w-full rounded-lg bg-gray-950 border border-gray-800 px-4 py-2.5 text-white focus:border-yellow-500 focus:outline-none">
+                    <option value="">-- Choose a term --</option>
+                    {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+
+                {selectedTermId && (
+                  <form onSubmit={handleAddCourse} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Course Code</label>
+                      <input type="text" required value={newCourseCode} onChange={(e) => setNewCourseCode(e.target.value)}
+                        placeholder="e.g., BBA201"
+                        className="w-full rounded-lg bg-gray-950 border border-gray-800 px-4 py-2.5 text-white focus:border-yellow-500 focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Course Name</label>
+                      <input type="text" required value={newCourseName} onChange={(e) => setNewCourseName(e.target.value)}
+                        placeholder="e.g., Principles of Marketing"
+                        className="w-full rounded-lg bg-gray-950 border border-gray-800 px-4 py-2.5 text-white focus:border-yellow-500 focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Credit Hours</label>
+                      <input type="number" min="1" max="6" value={newCourseCredits} onChange={(e) => setNewCourseCredits(e.target.value)}
+                        className="w-full rounded-lg bg-gray-950 border border-gray-800 px-4 py-2.5 text-white focus:border-yellow-500 focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Lecturer</label>
+                      <select value={newCourseLecturer} onChange={(e) => setNewCourseLecturer(e.target.value)}
+                        className="w-full rounded-lg bg-gray-950 border border-gray-800 px-4 py-2.5 text-white focus:border-yellow-500 focus:outline-none">
+                        <option value="">-- Unassigned --</option>
+                        {lecturers.map(l => <option key={l.id} value={l.fullName}>{l.fullName}</option>)}
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <button type="submit" className="w-full bg-yellow-500 hover:bg-yellow-400 font-semibold text-gray-950 py-2.5 rounded-lg transition-all">Add Course to Term</button>
+                    </div>
+                  </form>
+                )}
+
+                {selectedTermId && (
+                  <div className="mt-6 space-y-3">
+                    <h4 className="text-sm font-semibold text-gray-300">Courses in this term</h4>
+                    {coursesForSelectedTerm.length === 0 ? (
+                      <p className="text-gray-400 text-sm">No courses added yet.</p>
+                    ) : (
+                      coursesForSelectedTerm.map(c => (
+                        <div key={c.id} className="p-3 bg-gray-950 rounded-lg border border-gray-800 flex justify-between items-center">
+                          <div>
+                            <span className="text-xs text-yellow-500 font-mono font-bold mr-2">{c.courseCode}</span>
+                            <span className="text-white text-sm">{c.courseName}</span>
+                          </div>
+                          <span className="text-xs text-gray-400">{c.credits} cr • {c.lecturerName}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'registrations' && (
+            <div className="space-y-6">
+              <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+                <h3 className="text-lg font-bold text-white mb-4">Pending Registrations</h3>
+                {pendingRegistrations.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No pending registrations right now.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {pendingRegistrations.map(reg => (
+                      <div key={reg.id} className="p-4 bg-gray-950 rounded-xl border border-gray-800">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-semibold text-white">{getUserName(reg.studentId)}</h4>
+                            <p className="text-xs text-yellow-500 mb-2">{getTermName(reg.termId)}</p>
+                            <ul className="text-xs text-gray-400 list-disc list-inside">
+                              {(reg.courseIds || []).map(cid => <li key={cid}>{getCourseLabel(cid)}</li>)}
+                            </ul>
+                          </div>
+                          <button onClick={() => confirmRegistration(reg.id)}
+                            className="bg-yellow-500 hover:bg-yellow-400 text-gray-950 text-xs font-semibold px-3 py-1.5 rounded-lg">
+                            Confirm
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+                <h3 className="text-lg font-bold text-white mb-1">Record Term Results</h3>
+                <p className="text-gray-400 text-sm mb-4">Marking a student "Passed" automatically advances them to their next term.</p>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Select Term</label>
+                  <select value={resultsTermId} onChange={(e) => setResultsTermId(e.target.value)}
+                    className="w-full rounded-lg bg-gray-950 border border-gray-800 px-4 py-2.5 text-white focus:border-yellow-500 focus:outline-none">
+                    <option value="">-- Choose a term --</option>
+                    {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+
+                {resultsTermId && (
+                  <div className="space-y-3">
+                    {confirmedForResultsTerm.length === 0 ? (
+                      <p className="text-gray-400 text-sm">No confirmed registrations for this term yet.</p>
+                    ) : (
+                      confirmedForResultsTerm.map(reg => {
+                        const term = terms.find(t => t.id === resultsTermId);
+                        const marked = alreadyMarked(reg.studentId, resultsTermId);
+                        return (
+                          <div key={reg.id} className="p-4 bg-gray-950 rounded-xl border border-gray-800 flex justify-between items-center">
+                            <span className="text-white text-sm font-medium">{getUserName(reg.studentId)}</span>
+                            {marked ? (
+                              <span className="text-xs text-gray-400">Result already recorded</span>
+                            ) : (
+                              <div className="flex gap-2">
+                                <button onClick={() => markResult(reg.studentId, resultsTermId, 'passed', term)}
+                                  className="bg-green-500/10 text-green-400 border border-green-500/20 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-green-500/20">
+                                  Passed
+                                </button>
+                                <button onClick={() => markResult(reg.studentId, resultsTermId, 'not_cleared', term)}
+                                  className="bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-red-500/20">
+                                  Not Cleared
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+                        }
