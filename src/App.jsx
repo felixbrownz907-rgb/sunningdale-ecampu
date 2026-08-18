@@ -6,6 +6,7 @@ import Login from './Login';
 import AdminCurriculum from './AdminCurriculum';
 import AttendanceTracker from './AttendanceTracker';
 import AssignmentUpload from './AssignmentUpload';
+import CourseRegistration from './CourseRegistration';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -102,10 +103,26 @@ export default function App() {
             <div className="rounded-xl bg-gray-900 p-6 border border-gray-800 shadow-xl">
               <h2 className="text-xl font-bold text-white mb-2">Welcome back, {userData.fullName}</h2>
               <p className="text-gray-400 text-sm">
-                Track your course progress, check semester registration status, and upload your coursework assignments below.
+                Year {userData.yearLevel || 1}, Semester {userData.semester || 1} • Register your courses, track assignments, and stay on top of your term below.
               </p>
             </div>
-            <AssignmentUpload />
+
+            <div className="flex space-x-2 border-b border-gray-800 pb-3">
+              <button
+                onClick={() => setActiveTab('registration')}
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${activeTab === 'registration' || activeTab === 'dashboard' ? 'bg-yellow-500 text-gray-950 font-semibold' : 'text-gray-400 hover:text-white bg-gray-900'}`}
+              >
+                Course Registration
+              </button>
+              <button
+                onClick={() => setActiveTab('assignments')}
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${activeTab === 'assignments' ? 'bg-yellow-500 text-gray-950 font-semibold' : 'text-gray-400 hover:text-white bg-gray-900'}`}
+              >
+                Assignment Hub
+              </button>
+            </div>
+
+            {activeTab === 'assignments' ? <AssignmentUpload /> : <CourseRegistration userData={userData} />}
           </div>
         )}
       </main>
